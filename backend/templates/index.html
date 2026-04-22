@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LogSight Pro | Intelligent Analysis</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --panel: #1e293b;
+            --text: #e2e8f0;
+            --accent: #6366f1;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --border: #334155;
+        }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Sidebar */
+        aside { width: 280px; background: var(--panel); border-right: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+        .brand { font-size: 1.2rem; font-weight: 800; color: var(--accent); display: flex; align-items: center; gap: 10px; }
+        
+        .drop-zone { border: 2px dashed var(--border); border-radius: 12px; padding: 30px; text-align: center; cursor: pointer; transition: 0.2s; color: #94a3b8; font-size: 0.9rem; }
+        .drop-zone:hover { border-color: var(--accent); background: rgba(99, 102, 241, 0.1); color: white; }
+
+        /* Main Area */
+        main { flex: 1; display: flex; flex-direction: column; padding: 20px; overflow: hidden; }
+        
+        /* Filter Bar */
+        .filters { display: flex; gap: 15px; margin-bottom: 20px; background: var(--panel); padding: 15px; border-radius: 10px; align-items: center; }
+        select, input { background: var(--bg); border: 1px solid var(--border); color: white; padding: 8px 15px; border-radius: 6px; outline: none; }
+        select:focus { border-color: var(--accent); }
+
+        /* Table */
+        .table-container { flex: 1; overflow-y: auto; border-radius: 10px; border: 1px solid var(--border); }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th { position: sticky; top: 0; background: #0f172a; text-align: left; padding: 12px; color: #94a3b8; border-bottom: 1px solid var(--border); }
+        td { padding: 12px; border-bottom: 1px solid #1e293b; }
+        
+        tr.log-row { cursor: pointer; transition: 0.1s; }
+        tr.log-row:hover { background: #1e293b; }
+        
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .badge-ERROR { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        .badge-WARN, .badge-WARN { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+        .badge-INFO { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+
+        /* THE MODAL (Glassmorphism) */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center; z-index: 100; }
+        .modal { background: rgba(30, 41, 59, 0.95); border: 1px solid var(--border); width: 600px; border-radius: 16px; padding: 30px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); animation: slideIn 0.3s; }
+        
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-title { font-size: 1.5rem; font-weight: bold; color: var(--accent); }
+        
+        .analysis-section { background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        .analysis-label { font-size: 0.8rem; text-transform: uppercase; color: #94a3b8; margin-bottom: 5px; display: block; }
+        .analysis-text { font-size: 1rem; color: white; white-space: pre-wrap; line-height: 1.5; }
+        
+        .close-btn { background: var(--border); border: none; color: white; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+        .close-btn:hover { background: #475569; }
+
+        @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        #file-input { display: none; }
+    </style>
+</head>
+<body>
+
+    <aside>
+        <div class="brand">
+            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            LogSight Pro
+        </div>
+        <div class="drop-zone" id="drop-zone">
+            <div style="font-size: 2rem; margin-bottom: 10px;">☁️</div>
+            Drag & Drop Log File<br>or Click to Upload
+            <input type="file" id="file-input">
+        </div>
+        <button class="close-btn" style="width: 100%; background: var(--accent);" onclick="refreshData()">Refresh Dashboard</button>
+        <button class="close-btn" style="width: 100%; background: var(--danger);" onclick="resetDB()">Clear Database</button>
+    </aside>
+
+    <main>
+        <div class="filters">
+            <label>Severity:</label>
+            <select id="level-filter" onchange="fetchLogs(1)">
+                <option value="ALL">ALL LEVELS</option>
+                <option value="ERROR">🔴 ERRORS ONLY</option>
+                <option value="WARN">⚠️ WARNINGS</option>
+                <option value="INFO">INFO</option>
+            </select>
+            <input type="text" id="search-input" placeholder="Search logs..." style="flex:1;" onkeyup="if(event.key === 'Enter') fetchLogs(1)">
+        </div>
+
+        <div class="table-container">
+            <table id="log-table">
+                <thead>
+                    <tr>
+                        <th width="180">Time</th>
+                        <th width="100">Level</th>
+                        <th>Log Message</th>
+                    </tr>
+                </thead>
+                <tbody id="log-body">
+                    <!-- Logs -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <!-- MODAL FOR SOLUTION -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">Log Analysis</div>
+                <button class="close-btn" onclick="closeModal()">✕</button>
+            </div>
+            
+            <div class="analysis-section">
+                <span class="analysis-label">Detected Issue</span>
+                <div class="analysis-text" id="modal-message" style="color: #94a3b8; font-style: italic;"></div>
+            </div>
+
+            <div class="analysis-section" style="border-left: 4px solid var(--accent);">
+                <span class="analysis-label">🔍 Root Cause</span>
+                <div class="analysis-text" id="modal-reason">Analyzing...</div>
+            </div>
+
+            <div class="analysis-section" style="border-left: 4px solid var(--success);">
+                <span class="analysis-label">💡 Suggested Solution</span>
+                <div class="analysis-text" id="modal-solution">Analyzing...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // UI Interactions
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        
+        dropZone.onclick = () => fileInput.click();
+        fileInput.onchange = handleFiles;
+        
+        dropZone.ondragover = (e) => { e.preventDefault(); dropZone.style.borderColor = 'var(--accent)'; };
+        dropZone.ondragleave = () => { dropZone.style.borderColor = 'var(--border)'; };
+        dropZone.ondrop = (e) => { e.preventDefault(); dropZone.style.borderColor = 'var(--border)'; handleFiles({ target: { files: e.dataTransfer.files } }); };
+
+        async function handleFiles(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const formData = new FormData(); formData.append('file', file);
+            await fetch('/api/upload', { method: 'POST', body: formData });
+            setTimeout(refreshData, 1000);
+        }
+
+        async function fetchLogs(page = 1) {
+            const level = document.getElementById('level-filter').value;
+            const search = document.getElementById('search-input').value;
+            const res = await fetch(`/api/logs?page=${page}&level=${level}&search=${encodeURIComponent(search)}`);
+            const data = await res.json();
+            
+            const tbody = document.getElementById('log-body');
+            tbody.innerHTML = '';
+            
+            data.logs.forEach(log => {
+                const isErr = log.level === 'ERROR' || log.level === 'WARN';
+                const badgeClass = `badge-${log.level}`;
+                const row = document.createElement('tr');
+                row.className = 'log-row';
+                row.innerHTML = `
+                    <td style="color:#64748b">${log.timestamp}</td>
+                    <td><span class="badge ${badgeClass}">${log.level}</span></td>
+                    <td>${escapeHtml(log.message)}</td>
+                `;
+                
+                // Click to analyze if Error
+                if (isErr) {
+                    row.onclick = () => analyzeLog(log.message);
+                    row.style.cursor = "help"; // Change cursor to help icon
+                }
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        async function analyzeLog(message) {
+            // Show modal
+            const overlay = document.getElementById('modal-overlay');
+            overlay.style.display = 'flex';
+            
+            // Populate initial message
+            document.getElementById('modal-message').innerText = message;
+            document.getElementById('modal-reason').innerText = "Consulting Knowledge Base...";
+            document.getElementById('modal-solution').innerText = "Thinking...";
+
+            // Fetch Analysis
+            const res = await fetch('/api/analyze', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ message })
+            });
+            const data = await res.json();
+            
+            document.getElementById('modal-reason').innerText = data.reason;
+            document.getElementById('modal-solution').innerText = data.solution;
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').style.display = 'none';
+        }
+
+        function refreshData() { fetchLogs(1); }
+        
+        async function resetDB() {
+            if(confirm("Delete all logs?")) {
+                await fetch('/api/reset', { method: 'POST' });
+                fetchLogs(1);
+            }
+        }
+
+        function escapeHtml(t) { return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+        
+        // Initial Load
+        fetchLogs(1);
+    </script>
+</body>
+</html>
