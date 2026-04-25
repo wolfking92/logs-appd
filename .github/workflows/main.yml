@@ -1,0 +1,29 @@
+name: web_app
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout the code
+        uses: actions/checkout@v6.0.2
+
+      - name: checking docker version
+        run: |
+         docker --version
+         echo " docker version is "
+
+      - name: pulling docker image
+        run: docker pull halfblood9/web_app:v1
+
+      - name: run docker container
+        run: docker run -d -p 8000:8000 --name web halfblood9/web_app:v1
+
+
+
+         
+        
