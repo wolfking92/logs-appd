@@ -1,0 +1,36 @@
+name: web_app
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v6.0.2
+
+      - name: build the docker image
+        run: docker build -t web_app_v1.2 ./backend
+
+      - name: docker tags
+        run: docker tag web_app_v1.2 halfblood9/web_app:v2
+
+      - name: docker login
+        uses: docker/login-action@v4.1.0
+        with:
+          username: $ {{ secrets.DOCKERHUB_USERNAME }}
+          password: $ {{ secrents.DOCKERHUB_TOKEN }}
+          repo: $ {{ secrents.DOCKERHUB_REPO }}
+      - name: push
+        run: docker push halfblood9/web_app:v2
+
+      - name: docker container
+        run: docker run -d -p 8000:8000 web_app_v1.2 --name halfblood9/web_app:v2
+
+      
+
+      
+        
