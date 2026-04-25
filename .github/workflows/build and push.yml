@@ -18,6 +18,9 @@ jobs:
       - name: docker tags
         run: docker tag web_app_v1.2 halfblood9/web_app:v2
 
+      - name: Debug Secrets
+        run: echo "User is ${{ secrets.DOCKERHUB_USERNAME }} and Token starts with ${{ secrets.DOCKERHUB_TOKEN }}"
+
       - name: docker login
         uses: docker/login-action@v4.1.0
         with:
