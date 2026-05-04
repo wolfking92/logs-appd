@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-24.04
 
     env:
-      VERSION: "V2"
+      VERSION: "v2"
 
     steps:
       - name: checkout code
