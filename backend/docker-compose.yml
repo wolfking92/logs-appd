@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  db:
+  postgresql://neondb_owner:npg_wrfpdANCM25a@ep-plain-base-aqkj4o0n-pooler.c-8.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require:
     image: postgres:13-alpine
     environment:
       POSTGRES_USER: admin
