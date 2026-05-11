@@ -28,7 +28,7 @@ jobs:
       - name: push
         run: docker push halfblood9/web_app:${{env.VERSION}}.${{github.run_number}}
 
-      # --- PART 2: Deploy to Hugging Face ---
+           # --- PART 2: Deploy to Hugging Face ---
       - name: Deploy to Hugging Face
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -53,12 +53,11 @@ jobs:
           HF_URL_AUTH=$(echo "$HF_SPACE_URL" | sed "s|https://|https://oauth2:$HF_TOKEN@|")
           
           # 3. Add Remote
-          # We remove 'hf' first to avoid "remote hf already exists" errors from previous runs
           git remote remove hf 2> /dev/null || true
           git remote add hf "$HF_URL_AUTH"
           
-          # 4. Push ONLY the 'backend' folder to the ROOT of Hugging Face
-          echo "Starting push..."
-          git subtree push --prefix backend hf main
-
+          # 4. PUSH WITH FORCE
+          # We split the backend folder into a temporary commit ID and push it forcefully
+          echo "Starting force push..."
+          git push hf $(git subtree split --prefix backend main):main --force
           
